@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duolingo Mini App</title>
+    <!-- Подключаем Telegram Web App скрипт -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #131f24;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .card {
+            background-color: #1f2f38;
+            border: 2px solid #2d424c;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 8px 0 #111a21;
+        }
+        h2 { color: #58cc02; }
+        .stats {
+            background-color: #1f2f38;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #ffc800;
+        }
+        .btn {
+            background-color: #58cc02;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            box-shadow: 0 4px 0 #46a302;
+            transition: 0.1s;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+        .option-btn {
+            background-color: #2d424c;
+            color: white;
+            border: 2px solid #3c5966;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            width: 100%;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option-btn:hover { background-color: #3c5966; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app">
+        <h2>🦉 Английский с Duolingo</h2>
+        <div class="stats">
+            <span id="user-greeting">Загрузка профиля...</span> | 🌟 XP: <span id="xp-count">0</span>
+        </div>
+        
+        <div class="card" id="lesson-card">
+            <h3 id="progress-title">Вопрос 1 из 10</h3>
+            <p id="question-text" style="font-size: 18px; font-weight: bold; margin: 20px 0;">Загрузка вопроса...</p>
+            
+            <div id="options-container">
+                <!-- Сюда динамически подставляются кнопки ответов -->
+            </div>
+        </div>
+        
+        <button class="btn" id="next-btn" style="display: none;" onclick="nextQuestion()">Следующий вопрос</button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let user = tg.initDataUnsafe.user;
+        if (user) {
+            document.getElementById('user-greeting').innerText = `Привет, ${user.first_name}!`;
+        } else {
+            document.getElementById('user-greeting').innerText = `Привет, Гость!`;
+        }
+
+        // Огромная база на 45+ вопросов
+        const allQuestions = [
+            // Животные
+            { q: "Как переводится 'Dog'?", options: ["Кошка", "Собака", "Лошадь", "Рыба"], correct: "Собака" },
+            { q: "Перевод слова 'Bird'", options: ["Медведь", "Птица", "Мышь", "Слон"], correct: "Птица" },
+            { q: "Как сказать 'Лошадь' по-английски?", options: ["Horse", "House", "Mouse", "Cow"], correct: "Horse" },
+            { q: "Перевод слова 'Fish'", options: ["Мясо", "Птица", "Рыба", "Вода"], correct: "Рыба" },
+            { q: "Как переводится 'Mouse'?", options: ["Рот", "Мышь", "Дом", "Кот"], correct: "Мышь" },
+            
+            // Еда и напитки
+            { q: "Как переводится 'Bread'?", options: ["Молоко", "Масло", "Хлеб", "Сыр"], correct: "Хлеб" },
+            { q: "Перевод слова 'Milk'", options: ["Вода", "Сок", "Чай", "Молоко"], correct: "Молоко" },
+            { q: "Как сказать 'Яблоко'?", options: ["Banana", "Apple", "Orange", "Grape"], correct: "Apple" },
+            { q: "Перевод слова 'Meat'", options: ["Мясо", "Овощи", "Фрукты", "Рыба"], correct: "Мясо" },
+            { q: "Как переводится 'Cheese'?", options: ["Масло", "Сыр", "Творог", "Хлеб"], correct: "Сыр" },
+            { q: "Перевод слова 'Water'", options: ["Вода", "Кофе", "Чай", "Сок"], correct: "Вода" },
+            { q: "Как переводится 'Sugar'?", options: ["Соль", "Перец", "Сахар", "Мука"], correct: "Сахар" },
+            
+            // Цвета
+            { q: "Как переводится 'Red'?", options: ["Синий", "Красный", "Желтый", "Зеленый"], correct: "Красный" },
+            { q: "Перевод слова 'Blue'", options: ["Черный", "Белый", "Синий", "Серый"], correct: "Синий" },
+            { q: "Как сказать 'Зеленый'?", options: ["Red", "Green", "Yellow", "Black"], correct: "Green" },
+            { q: "Перевод слова 'Yellow'", options: ["Желтый", "Розовый", "Оранжевый", "Красный"], correct: "Желтый" },
+            { q: "Как переводится 'Black'?", options: ["Белый", "Черный", "Серый", "Коричневый"], correct: "Черный" },
+            { q: "Перевод слова 'White'", options: ["Черный", "Белый", "Серый", "Голубой"], correct: "Белый" },
+
+            // Глаголы действия
+            { q: "Как переводится 'To run'?", options: ["Прыгать", "Бегать", "Ходить", "Плавать"], correct: "Бегать" },
+            { q: "Перевод слова 'To sleep'", options: ["Спать", "Есть", "Пить", "Работать"], correct: "Спать" },
+            { q: "Как сказать 'Читать'?", options: ["To write", "To read", "To speak", "To listen"], correct: "To read" },
+            { q: "Перевод слова 'To eat'", options: ["Пить", "Готовить", "Есть", "Жевать"], correct: "Есть" },
+            { q: "Как переводится 'To drink'?", options: ["Есть", "Пить", "Глотать", "Лить"], correct: "Пить" },
+            { q: "Перевод слова 'To write'", options: ["Писать", "Читать", "Слушать", "Рисовать"], correct: "Писать" },
+            { q: "Как переводится 'To speak'?", options: ["Молчать", "Кричать", "Говорить", "Спрашивать"], correct: "Говорить" },
+            { q: "Перевод слова 'To know'", options: ["Думать", "Знать", "Помнить", "Забывать"], correct: "Знать" },
+
+            // Прилагательные
+            { q: "Как переводится 'Big'?", options: ["Маленький", "Большой", "Длинный", "Короткий"], correct: "Большой" },
+            { q: "Перевод слова 'Small'", options: ["Большой", "Высокий", "Маленький", "Низкий"], correct: "Маленький" },
+            { q: "Как сказать 'Быстрый'?", options: ["Slow", "Fast", "Hard", "Soft"], correct: "Fast" },
+            { q: "Перевод слова 'Slow'", options: ["Быстрый", "Медленный", "Резкий", "Тихий"], correct: "Медленный" },
+            { q: "Как переводится 'Hot'?", options: ["Холодный", "Теплый", "Горячий", "Морозный"], correct: "Горячий" },
+            { q: "Перевод слова 'Cold'", options: ["Жаркий", "Холодный", "Свежий", "Ледяной"], correct: "Холодный" },
+            { q: "Как переводится 'Beautiful'?", options: ["Уродливый", "Красивый", "Страшный", "Обычный"], correct: "Красивый" },
+
+            // Фразы и выражения
+            { q: "Что значит 'How are you?'", options: ["Кто ты?", "Где ты?", "Как дела?", "Что делаешь?"], correct: "Как дела?" },
+            { q: "Как сказать 'Спасибо'?", options: ["Please", "Sorry", "Thank you", "Excuse me"], correct: "Thank you" },
+            { q: "Перевод слова 'Please'", options: ["Спасибо", "Извините", "Пожалуйста", "До свидания"], correct: "Пожалуйста" },
+            { q: "Что значит 'Excuse me'?", options: ["Прости меня", "Извините (для привлечения внимания)", "Пожалуйста", "Спасибо"], correct: "Извините (для привлечения внимания)" },
+            { q: "Как переводится 'Good morning'?", options: ["Добрый вечер", "Добрый день", "Доброе утро", "Спокойной ночи"], correct: "Доброе утро" },
+            { q: "Перевод 'See you later'", options: ["До встречи", "Добро пожаловать", "Как дела?", "До свидания"], correct: "До встречи" },
+
+            // Грамматика и местоимения
+            { q: "Как переводится 'I'?", options: ["Он", "Она", "Я", "Мы"], correct: "Я" },
+            { q: "Перевод слова 'We'", options: ["Они", "Вы", "Мы", "Я"], correct: "Мы" },
+            { q: "Как сказать 'Они'?", options: ["He", "She", "It", "They"], correct: "They" },
+            { q: "Перевод фразы 'I have a cat'", options: ["Я люблю кошек", "У меня есть кошка", "Это моя кошка", "Кошка спит"], correct: "У меня есть кошка" },
+            { q: "Как переводится 'She is my sister'?", options: ["Она моя мама", "Она моя подруга", "Она моя сестра", "Он мой брат"], correct: "Она моя сестра" },
+            { q: "Перевод 'He plays football'", options: ["Он смотрит футбол", "Она играет в футбол", "Он играет в футбол", "Мы играем в футбол"], correct: "Он играет в футбол" }
+        ];
+
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let totalXP = 0;
+        const QUESTIONS_PER_LESSON = 10; // Количество вопросов в одном уроке
+
+        function startLesson() {
+            // Берем случайные 10 вопросов из всей базы
+            currentQuestions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, QUESTIONS_PER_LESSON);
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('next-btn').style.display = 'none';
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (currentIndex >= currentQuestions.length) {
+                document.getElementById('lesson-card').innerHTML = `
+                    <h3>🎉 Урок завершен!</h3>
+                    <p>Правильных ответов: ${score} из ${currentQuestions.length}</p>
+                    <p style="color: #ffc800; font-weight: bold;">Заработано опыта: +${score * 10} XP</p>
+                `;
+                totalXP += score * 10;
+                document.getElementById('xp-count').innerText = totalXP;
+                
+                let btn = document.getElementById('next-btn');
+                btn.innerText = "Пройти следующий урок";
+                btn.style.display = 'block';
+                btn.onclick = startLesson;
+                return;
+            }
+
+            let qData = currentQuestions[currentIndex];
+            document.getElementById('progress-title').innerText = `Вопрос ${currentIndex + 1} из ${currentQuestions.length}`;
+            document.getElementById('question-text').innerText = qData.q;
+
+            let container = document.getElementById('options-container');
+            container.innerHTML = "";
+
+            // Перемешиваем кнопки с ответами, чтобы правильный ответ всегда был на новом месте
+            let shuffledOptions = [...qData.options].sort(() => 0.5 - Math.random());
+
+            shuffledOptions.forEach(option => {
+                let btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = option;
+                btn.onclick = () => checkAnswer(option, qData.correct);
+                container.appendChild(btn);
+            });
+
+            document.getElementById('next-btn').style.display = 'none';
+        }
+
+        function checkAnswer(selected, correct) {
+            let buttons = document.querySelectorAll('.option-btn');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                if (btn.innerText === correct) {
+                    btn.style.backgroundColor = '#58cc02'; 
+                } else if (btn.innerText === selected) {
+                    btn.style.backgroundColor = '#ff4b4b'; 
+                }
+            });
+
+            if (selected === correct) {
+                score++;
+            }
+
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            showQuestion();
+        }
+
+        // Запускаем первую тренировку
+        startLesson();
+    </script>
+</body>
+</html>
